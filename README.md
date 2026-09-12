@@ -9,6 +9,31 @@
 
 ---
 
+## 📦 二进制产物 → 见 [Releases v1.0](../../releases/tag/v1.0)
+
+仓库树里只放文本与脚本；评审要的三个二进制产物都在 Release 附件（GitHub 普通 git 单文件上限
+100 MB，134 MB 的破解 APK 也只能走 Release）：
+
+| 附件 | 大小 | 说明 |
+|---|---|---|
+| `maimemo_v5.6.0_cracked_standalone.apk` | 134 MB | **重打包 + 签名的破解包**，`adb install -r` 即可，无需 root / frida-server |
+| `unpacked_dex.zip` | 14 MB | 脱壳业务 dex ×5 + 手工字节级补丁后的 `dex_0007`（`a.s()` → `0x7fffffff`） |
+| `native_libs.zip` | 16 MB | 原版 `lib/arm64-v8a/*.so` + 我们的 ELF 补丁产物 + 独立包 payload |
+| `SHA256SUMS.txt` | — | 校验清单 |
+
+安装后看效果：
+
+```bash
+adb install -r maimemo_v5.6.0_cracked_standalone.apk
+adb logcat -s MoMoBoot:I MoMoCrack:I
+# [INFO] x1d.f(false) = 2147483647          <- 本地：无限
+# [INFO] 上报模式读到的真实值: 单词上限=5012  <- 上报给服务器的仍是真实值
+```
+
+详见 [ARTIFACTS.md](ARTIFACTS.md)。
+
+---
+
 ## 一、结论（TL;DR）
 
 | 项 | 结果 |

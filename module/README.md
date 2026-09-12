@@ -126,3 +126,18 @@ com.momowords.crack.MoMoHook
   包装只是置/清一个线程级标志，多包一个无害。
 * `r47.getAvailableWordLimit(fb2)` 没有 hook —— `a.s()` 改成无限后它的取值来源需要实测确认；
   如果设置页显示的可用上限不对，按同一个 `UnlimitedHook` 补上即可。
+
+---
+
+## 等级特权解锁（Issue #1）
+
+模块同样包含等级解锁，两个 hook：
+
+| 目标 | 改成 |
+|---|---|
+| `com.maimemo.android.momo.user.level.LevelPrivilege.a()` | `0`（特权要求的等级清零） |
+| `xfb.h()` | `999`（用户等级拉满） |
+
+门控公式：`xfb.f.h() >= levelPrivilege.getLevel()` → 不满足就加
+`DisableReason.LevelNotReached`。两个操作数都被强制通过后，该原因不会再产生。
+细节与真机证据见 [`../docs/Issue1_Level_Unlock.md`](../docs/Issue1_Level_Unlock.md)。

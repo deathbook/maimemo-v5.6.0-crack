@@ -138,7 +138,53 @@
 
     invoke-static {v2, v7, v3, v1}, Lde/robv/android/xposed/XposedHelpers;->findAndHookMethod(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/String;[Ljava/lang/Object;)Lde/robv/android/xposed/XC_MethodHook$Unhook;
 
-    # ---- 5) 上报构造函数：ada.b() / s40.m() / gq2.m() ----
+    # ---- 5) 等级特权解锁：特权要求的等级 -> 0 ----
+    #   门控在 com.maimemo.android.momo.user.level.a：
+    #       boolean z9 = xfb.f.h() >= levelPrivilege.getLevel();
+    #       if (!z9) disableReasons.add(DisableReason.LevelNotReached);   // ←「等级限制」
+    #   注意等级 getter 在 dex 里叫 a()（jadx 把它重命名成了 getLevel）
+    new-instance v0, Lcom/momowords/crack/UnlimitedHook;
+
+    const/4 v1, 0x0
+
+    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+
+    const/4 v1, 0x1
+
+    new-array v1, v1, [Ljava/lang/Object;
+
+    const/4 v2, 0x0
+
+    aput-object v0, v1, v2
+
+    const-string v2, "com.maimemo.android.momo.user.level.LevelPrivilege"
+
+    const-string v3, "a"
+
+    invoke-static {v2, v7, v3, v1}, Lde/robv/android/xposed/XposedHelpers;->findAndHookMethod(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/String;[Ljava/lang/Object;)Lde/robv/android/xposed/XC_MethodHook$Unhook;
+
+    # ---- 6) 用户等级拉满（999），双保险 ----
+    new-instance v0, Lcom/momowords/crack/UnlimitedHook;
+
+    const/16 v1, 0x3e7
+
+    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+
+    const/4 v1, 0x1
+
+    new-array v1, v1, [Ljava/lang/Object;
+
+    const/4 v2, 0x0
+
+    aput-object v0, v1, v2
+
+    const-string v2, "xfb"
+
+    const-string v3, "h"
+
+    invoke-static {v2, v7, v3, v1}, Lde/robv/android/xposed/XposedHelpers;->findAndHookMethod(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/String;[Ljava/lang/Object;)Lde/robv/android/xposed/XC_MethodHook$Unhook;
+
+    # ---- 7) 上报构造函数：ada.b() / s40.m() / gq2.m() ----
     # 用 hookAllMethods 而不是 findAndHookMethod —— 这三个方法的重载签名我们没逐个确认过，
     # 按名字全hook 更稳，而包装只是置/清一个线程级标志，多包一个无害。
     const-string v1, "ada"

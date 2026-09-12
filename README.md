@@ -250,3 +250,34 @@ Android 16 上 **LSPatch 不可用**（LSPatch v0.6 的 loader 崩：`LSPlant: F
 
 > 模块尚未在真机运行验证（开发机只有 KernelSU、无 LSPosed）；已验证编译、dex 类齐全、清单与
 > `xposed_init` 正确、签名有效。细节见 `module/README.md` 的「已知限制」。
+
+---
+
+## 十一、等级限制解除（Issue #1）
+
+墨墨除了「单词上限」还有一套**等级特权**：每个特权带一个**要求的用户等级**，没达到就标「解锁」。
+门控在 `com/maimemo/android/momo/user/level/a.java`：
+
+```java
+boolean z9 = xfb.f.h() >= levelPrivilege.getLevel();      // 用户等级 >= 特权要求等级
+if (!z9) disableReasons.add(LevelPrivilege.DisableReason.LevelNotReached);   // ←「等级限制」
+```
+
+两条路线都加了同一对 hook：
+
+| 目标 | 改成 | 说明 |
+|---|---|---|
+| `com.maimemo.android.momo.user.level.LevelPrivilege.a()` | `0` | 特权要求的等级清零（dex 里方法名是 `a`，jadx 重命名成了 `getLevel`） |
+| `xfb.h()` | `999` | 用户等级拉满，兜住其它直接比等级的地方 |
+
+真机证据（Lv.7 的账号）：
+
+```
+I MoMoCrack: [OK] hook LevelPrivilege.a()  => 0（特权等级要求清零）
+I MoMoCrack: [OK] hook xfb.h()  => 999（用户等级拉满）
+I MoMoCrack: xfb.h() 原始用户等级 = 7（已改为 999）
+I MoMoCrack: SELFTEST ok local=2147483647 reporting=5012 stealth=true origCallOk
+```
+
+不需要反检测：`inf_level` 带 `@SyncIgnored`，等级不随上报链路回传服务器；改的是本地设置值，
+不写数据库。详见 [`docs/Issue1_Level_Unlock.md`](docs/Issue1_Level_Unlock.md)。

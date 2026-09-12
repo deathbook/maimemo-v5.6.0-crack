@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.momowords.crack"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <application
+        android:allowBackup="false"
+        android:label="MoMoCrack">
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="MoMoWords Lesson1 - maimemo v5.6.0 单词上限解锁 + 上报一致性" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="93" />
+    </application>
+
+</manifest>

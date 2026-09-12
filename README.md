@@ -225,3 +225,28 @@ evidence/ EVIDENCE_frida_crack.log        破解运行日志
 * Android 16 起 `System.load` 可写的 cache 文件会打警告 `Attempt to load writable file`，
   未来版本若改为抛错，这条注入路径需要更换落点。
 * 每次冷启会往 App cache 写 25 MB 的 gadget（约 200 ms）。
+
+
+---
+
+## 十、LSPosed 模块（Android 16 上唯一能解决延迟的路线）
+
+无 root 的 Frida 独立包能用，但按键延迟有下限 —— Frida 建 Java hook 后相关类会退出 ART 的 AOT/JIT
+优化，这是"在场成本"而不是回调次数（实测 `a.s()` 20 秒才 11 次，照样掉 44%）。详见
+[`docs/Performance_Notes.md`](docs/Performance_Notes.md)。
+
+Android 16 上 **LSPatch 不可用**（LSPatch v0.6 的 loader 崩：`LSPlant: Failed to find GetMethodShorty`
++ `NoSuchFieldError: ActivityThread$AppBindData#compatInfo`），详见
+[`docs/LSPatch_Probe_Result.md`](docs/LSPatch_Probe_Result.md)。
+
+所以性能路线只剩 **LSPosed 模块**：`module/momocrack-module.apk`（**12.7 KB**，官方 APK 原封不动，
+不重打包、不换签名、没有 `packageInfo is null`）。安装与实现见 [`module/README.md`](module/README.md)。
+
+| 路线 | 需要 root | 是否改官方包 | 性能 | Android 16 |
+|---|---|---|---|---|
+| Frida 无 root 独立包（本仓库 Releases） | 否 | 是（改 `META-INF/native/`） | 有地板 | ✅ |
+| **LSPosed 模块**（`module/`） | **是** | **否** | 接近官方版 | ✅ |
+| LSPatch 本地模式 | 否 | 是（Manifest + dex） | 接近官方版 | ❌ |
+
+> 模块尚未在真机运行验证（开发机只有 KernelSU、无 LSPosed）；已验证编译、dex 类齐全、清单与
+> `xposed_init` 正确、签名有效。细节见 `module/README.md` 的「已知限制」。

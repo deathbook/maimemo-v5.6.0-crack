@@ -38,3 +38,6 @@ logs/apply_crack.log
 .vscode/
 .DS_Store
 Thumbs.db
+
+# 例外：Xposed/LSPosed 模块本体只有 12.7KB，直接入库方便评审
+!module/momocrack-module.apk

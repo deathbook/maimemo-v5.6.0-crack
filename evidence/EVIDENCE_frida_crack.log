@@ -1,0 +1,66 @@
+2026-09-12 12:01:27 [INFO] === apply_crack 开始 (mode=daemon) ===
+2026-09-12 12:01:29 [INFO] 守护模式：Ctrl+C 退出；进程被杀/重启会自动重新注入
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] === MoMoCrack 启动 (maimemo v5.6.00) ===
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] arch=x64 frida=17.12.0
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] --- 步骤1: hook 前原始值 ---
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] a.s()                     = 5012   <- 单词上限
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] x1d.f(false)              = 4214   <- 可用单词上限
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] gq2.c()                   = -4214   <- 欠债数
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] gq2.h()                   = false   <- 欠债学习激活
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] phd.d().a.G0()            = <err: TypeError: not a function>   <- 已学词数
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] phd.d().a.W0()            = <err: TypeError: not a function>
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][INFO] --- 步骤2: 安装 hook ---
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][OK] hook com.maimemo.android.momo.a.s()  => 2147483647
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][OK] hook dma.a(int,String,String)  => 2147483647
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][OK] hook r47.getAvailableWordLimit(fb2)  => 2147483647
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][OK] hook gq2.c()  => 0
+2026-09-12 12:01:29 [SCRIPT] [MoMoCrack][OK] hook gq2.h()  => false
+2026-09-12 12:01:29 [INFO] crack.bundle.js 已注入 pid=12555
+2026-09-12 12:01:29 [INFO] hook 已生效 (pid=12555)
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][INFO] --- 步骤3: hook 后破解值 ---
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][INFO] a.s()        = 2147483647   <- 单词上限
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][INFO] x1d.f(false) = 2147482849   <- 可用单词上限
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][HIT] gq2.c() 欠债数  =>  0
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][INFO] gq2.c()      = 0   <- 欠债数
+2026-09-12 12:01:30 [SCRIPT] [MoMoCrack][INFO] === MoMoCrack 安装完成：可用单词上限已改为无限 ===
+2026-09-12 12:01:39 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:01:39 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)
+2026-09-12 12:01:39 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:01:39 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)
+2026-09-12 12:01:39 [SCRIPT] [MoMoCrack][HIT] gq2.c() 欠债数  =>  0
+2026-09-12 12:01:53 [WARN] 检测到进程重启 (pid 12555 -> 0)，重新注入
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] === MoMoCrack 启动 (maimemo v5.6.00) ===
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] arch=x64 frida=17.12.0
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] --- 步骤1: hook 前原始值 ---
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] a.s()                     = 5012   <- 单词上限
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] x1d.f(false)              = 4214   <- 可用单词上限
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] gq2.c()                   = -4214   <- 欠债数
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] gq2.h()                   = false   <- 欠债学习激活
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] phd.d().a.G0()            = <err: TypeError: not a function>   <- 已学词数
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] phd.d().a.W0()            = <err: TypeError: not a function>
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][INFO] --- 步骤2: 安装 hook ---
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][OK] hook com.maimemo.android.momo.a.s()  => 2147483647
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][OK] hook dma.a(int,String,String)  => 2147483647
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][OK] hook r47.getAvailableWordLimit(fb2)  => 2147483647
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][OK] hook gq2.c()  => 0
+2026-09-12 12:01:56 [SCRIPT] [MoMoCrack][OK] hook gq2.h()  => false
+2026-09-12 12:01:56 [INFO] crack.bundle.js 已注入 pid=13025
+2026-09-12 12:01:56 [INFO] hook 已生效 (pid=13025)
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][INFO] --- 步骤3: hook 后破解值 ---
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][INFO] a.s()        = 2147483647   <- 单词上限
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][INFO] x1d.f(false) = 2147482849   <- 可用单词上限
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][HIT] gq2.c() 欠债数  =>  0
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][INFO] gq2.c()      = 0   <- 欠债数
+2026-09-12 12:01:57 [SCRIPT] [MoMoCrack][INFO] === MoMoCrack 安装完成：可用单词上限已改为无限 ===
+2026-09-12 12:02:17 [SCRIPT] [MoMoCrack][HIT] dma.a(uid=50963917, enc=6BsyE2vM0rw9U0Ul5Hlk7m63V6s9jqSsU30qAs46nto=) 原值=5012  =>  2147483647
+2026-09-12 12:02:17 [SCRIPT] [MoMoCrack][HIT] a.s() 原值=2147483647  =>  2147483647 (无限)

@@ -1,0 +1,40 @@
+# 原版 / 重打包 APK、脱壳产物、大二进制一律不进仓库
+*.apk
+*.apks
+*.xapk
+*.dex
+*.odex
+*.vdex
+*.oat
+*.so
+*.a
+*.zip
+*.7z
+*.rar
+*.xz
+
+# 逆向工具产物
+analysis/
+build/
+artifacts/
+patch/*
+!patch/gadget_payload/
+gh_repo/
+*.jar
+
+# 运行期 / 依赖
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 大日志（>1MB 的设备日志不入库）
+logs/realdevice_*.log
+logs/apply_crack.log
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

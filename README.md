@@ -281,3 +281,31 @@ I MoMoCrack: SELFTEST ok local=2147483647 reporting=5012 stealth=true origCallOk
 
 不需要反检测：`inf_level` 带 `@SyncIgnored`，等级不随上报链路回传服务器；改的是本地设置值，
 不写数据库。详见 [`docs/Issue1_Level_Unlock.md`](docs/Issue1_Level_Unlock.md)。
+
+---
+
+## 十二、上报值调整：真实值 → 固定 1
+
+上报路径的返回值从**服务端真实值**改成**固定 `1`**（本地仍是 2147483647）：
+
+| | 本地路径 | 上报路径 |
+|---|---|---|
+| v1.3 及以前 | `2147483647` | 服务端真实值（5012） |
+| **v1.4** | `2147483647` | **`1`** |
+
+* **Frida 独立包**：新增 `REPORT_REAL = false` + `REPORT_VALUE = 1`（改回旧行为只需 `REPORT_REAL = true`）
+* **LSPosed 模块**：`UnlimitedHook` 改为 `(value, reportValue)` 双参数，
+  `reportValue = 0x7FFFFFFE` 作哨兵表示「上报路径不干预」
+
+真机证据：
+
+```
+I MoMoCrack: [OK] hook a.s()  => 2147483647（上报路径固定返回 1）
+I MoMoCrack: SELFTEST ok local=2147483647 reporting=1 stealth=true origCallOk
+```
+
+> ⚠️ **这一改动削弱了反检测**：服务端知道该账号真实上限是 5012，客户端上报 `1` 属于
+> 「报了服务端已知不对的数」，本身就是异常信号；且 `learned_voc_count` 仍是真实的 5012，
+> 会出现「已学 5012 > 上限 1」的矛盾。旧方案在这些维度上更安全。
+
+详见 [`docs/Report_Value_Change.md`](docs/Report_Value_Change.md)。

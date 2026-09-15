@@ -35,6 +35,8 @@ var TAG = '[MoMoCrack]';
 var LIMIT = 0x7FFFFFFF;         // 2147483647 ≈ 无限
 var STEALTH = true;             // true = 上报真实值（反封号）；false = 连上报也是无限（会被判定破解）
 var FALLBACK_REAL = 600;        // 上报路径读不到真实值时的兜底（= App 自身默认上限，绝不泄露无限值）
+var REPORT_REAL = false;        // true = 上报路径回落服务端真实值；false = 固定返回 REPORT_VALUE
+var REPORT_VALUE = 1;           // 上报路径返回的固定值（原设计回落真实值，按要求改为 1）
 var gOrigFail = '';             // 上报路径调用原实现失败的记录（用于取证：区分「真 600」与「读不到」）
 
 /*
@@ -66,7 +68,21 @@ function alog(msg) {
     } catch (e) { }
 }
 
-var TOAST_BUDGET = 14;
+/*
+ * 性能策略（v3，针对「按键延迟」）：
+ *   1. Toast 默认全关 —— Toast 要在主线程 inflate + 跨进程发通知，是实打实的 UI 抖动源。
+ *   2. 不再用 send() —— script 交互模式下 gadget 只把消息打到 stdout（= /dev/null），
+ *      白做一次 JSON 序列化；日志统一走 __android_log_print 进 logcat。
+ *   3. 降噪：INFO 默认不进 logcat，只留 OK/WARN/ERROR/AUDIT。
+ *   4. 不 hook gq2.h() —— 它是 UI 热路径（实测 20s 内约 118 次），而 a.s() 改成无限后
+ *      欠债数天然为负，h() 自己就会返回 false，这个 hook 纯付 Frida 退优化的代价。
+ *   5. 上报字段审计默认关闭（每次上报都要过 JS 桥读 2 个字段）。
+ */
+var ENABLE_TOAST = false;       // 需要现场看效果时改 true（Toast 是主线程抖动源）
+var LOG_VERBOSE = false;        // true = 连 INFO 也打 logcat
+var AUDIT_REPORTS = false;      // true = 每次上报读字段核对有没有泄露无限值
+
+var TOAST_BUDGET = ENABLE_TOAST ? 14 : 0;
 function toast(msg) {
     if (TOAST_BUDGET <= 0) { return; }
     TOAST_BUDGET--;
@@ -91,9 +107,9 @@ function toast(msg) {
 }
 
 function log(level, msg) {
-    send({ tag: TAG, level: level, msg: msg });
+    if (level === 'INFO' && !LOG_VERBOSE) { return; }   // 降噪：INFO 默认不进 logcat
     alog('[' + level + '] ' + msg);
-    if (level === 'OK' || level === 'AUDIT' || level === 'ERROR' || level === 'WARN') {
+    if (ENABLE_TOAST && (level === 'OK' || level === 'AUDIT' || level === 'ERROR' || level === 'WARN')) {
         toast(msg);
     }
 }
@@ -195,13 +211,14 @@ function boot(attempt) {
         var lastRealLimit = -1;
         A.s.implementation = function () {
             if (STEALTH && inReporting()) {
+                if (!REPORT_REAL) { return REPORT_VALUE; }
                 try { lastRealLimit = origS.call(this); } catch (e) { gOrigFail = 'a.s:' + e; }
                 // 读不到真实值时退回 App 自己的默认上限，绝不把 2147483647 报上去
                 return lastRealLimit >= 0 ? lastRealLimit : FALLBACK_REAL;
             }
             return LIMIT;
         };
-        log('OK', 'hook a.s()  => ' + LIMIT + (STEALTH ? '（仅上报路径回落真实值）' : ''));
+        log('OK', 'hook a.s()  => ' + LIMIT + (STEALTH ? ('（上报路径固定返回 ' + (REPORT_REAL ? '真实值' : REPORT_VALUE) + '）') : ''));
     }
 
     // 2.2 本地加密存储解密（dma.a 只有 (int,String,String) 这一个 a 重载）
@@ -210,12 +227,13 @@ function boot(attempt) {
         var lastRealDma = -1;
         DMA.a.implementation = function (uid, enc, email) {
             if (STEALTH && inReporting()) {
+                if (!REPORT_REAL) { return REPORT_VALUE; }
                 try { lastRealDma = origDmaA.call(this, uid, enc, email); } catch (e) { }
                 return lastRealDma >= 0 ? lastRealDma : FALLBACK_REAL;
             }
             return LIMIT;
         };
-        log('OK', 'hook dma.a(int,String,String)  => ' + LIMIT + '（仅上报路径回落真实值）');
+        log('OK', 'hook dma.a(int,String,String)  => ' + LIMIT + '（上报路径固定返回 ' + (REPORT_REAL ? '真实值' : REPORT_VALUE) + '）');
     }
 
     // 2.3 可用单词上限
@@ -224,12 +242,13 @@ function boot(attempt) {
         var lastRealAvail = -1;
         X1D.f.implementation = function (z) {
             if (STEALTH && inReporting()) {
+                if (!REPORT_REAL) { return REPORT_VALUE; }
                 try { lastRealAvail = origX1DF.call(this, z); } catch (e) { }
                 return lastRealAvail >= 0 ? lastRealAvail : FALLBACK_REAL;
             }
             return LIMIT;
         };
-        log('OK', 'hook x1d.f(boolean)  => ' + LIMIT + '（仅上报路径回落真实值）');
+        log('OK', 'hook x1d.f(boolean)  => ' + LIMIT + '（上报路径固定返回 ' + (REPORT_REAL ? '真实值' : REPORT_VALUE) + '）');
     }
 
     // 2.4 Compose 侧可用上限
@@ -255,14 +274,41 @@ function boot(attempt) {
             };
             log('OK', 'hook gq2.c()  => 0');
         } catch (e) { log('WARN', 'gq2.c hook 失败: ' + e); }
+        // gq2.h() 故意不 hook：UI 热路径（20s 内约 118 次），而 a.s() = 无限后
+        // 欠债数天然为负，h() 自己就返回 false。少一个 hook = 少一处 Frida 退优化。
+    }
+
+    // 2.6 等级特权解锁（issue #1）
+    //   门控在 com.maimemo.android.momo.user.level.a 里：
+    //       boolean z9 = xfb.f.h() >= levelPrivilege.getLevel();
+    //       if (!z9) disableReasons.add(DisableReason.LevelNotReached);   // ←「等级限制」
+    //   两边一起清零：特权要求的等级 -> 0，用户等级 -> 999。
+    //   注意 LevelPrivilege 的等级 getter 在 dex 里叫 a()（jadx 重命名成了 getLevel）。
+    var LP = use('com.maimemo.android.momo.user.level.LevelPrivilege');
+    if (LP) {
         try {
-            GQ2.h.implementation = function () { return false; };
-            log('OK', 'hook gq2.h()  => false');
-        } catch (e) { log('WARN', 'gq2.h hook 失败: ' + e); }
+            LP.a.implementation = function () { return 0; };
+            log('OK', 'hook LevelPrivilege.a()  => 0（特权等级要求清零）');
+        } catch (e) { log('WARN', 'LevelPrivilege.a hook 失败: ' + e); }
+    }
+    var XFB = use('xfb');
+    if (XFB) {
+        try {
+            var origXfbH = XFB.h;
+            var seenLevel = null;
+            XFB.h.implementation = function () {
+                if (seenLevel === null) {
+                    try { seenLevel = origXfbH.call(this); } catch (e) { seenLevel = -1; }
+                    alog('xfb.h() 原始用户等级 = ' + seenLevel + '（已改为 999）');
+                }
+                return 999;
+            };
+            log('OK', 'hook xfb.h()  => 999（用户等级拉满）');
+        } catch (e) { log('WARN', 'xfb.h hook 失败: ' + e); }
     }
 
     // 2.6 【反检测】上报构造函数 —— 期间返回真实值
-    wrapReportBuilder(ADA, 'b', 'ada.b()  [/log/study_log 的 StudyLogRequest]', function (req) {
+    wrapReportBuilder(ADA, 'b', 'ada.b()  [/log/study_log 的 StudyLogRequest]', AUDIT_REPORTS ? function (req) {
         if (!req) { return; }
         try {
             var wl = req.wordLimit.value;
@@ -270,7 +316,7 @@ function boot(attempt) {
             var flag = (wl >= LIMIT || aw >= LIMIT) ? '❌ 泄露!!' : '✅ 正常';
             log('AUDIT', '/log/study_log 将上报 wordLimit=' + wl + ' availableWordLimit=' + aw + '  ' + flag);
         } catch (e) { log('AUDIT', 'StudyLogRequest 字段读取失败: ' + e); }
-    });
+    } : null);
     wrapReportBuilder(S40, 'm', 's40.m()  [/misc/system/check 的 debt_report_data]');
     wrapReportBuilder(GQ2, 'm', 'gq2.m()  [债务上报]');
 

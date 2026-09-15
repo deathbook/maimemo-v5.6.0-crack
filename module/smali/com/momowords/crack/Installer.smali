@@ -35,7 +35,9 @@
 
     const v1, 0x7fffffff
 
-    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+    const/4 v2, 0x1
+
+    invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
     const/4 v1, 0x1
 
@@ -56,7 +58,9 @@
 
     const v1, 0x7fffffff
 
-    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+    const/4 v2, 0x1
+
+    invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
     const/4 v1, 0x4
 
@@ -95,7 +99,9 @@
 
     const v1, 0x7fffffff
 
-    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+    const/4 v2, 0x1
+
+    invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
     const/4 v1, 0x2
 
@@ -117,12 +123,14 @@
 
     invoke-static {v2, v7, v3, v1}, Lde/robv/android/xposed/XposedHelpers;->findAndHookMethod(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/String;[Ljava/lang/Object;)Lde/robv/android/xposed/XC_MethodHook$Unhook;
 
-    # ---- 4) gq2.c()  ->  0（欠债数）----
+    # ---- 4) gq2.c()  ->  0（欠债数）；上报路径不干预，让原实现跑 ----
     new-instance v0, Lcom/momowords/crack/UnlimitedHook;
 
     const/4 v1, 0x0
 
-    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+    const v2, 0x7ffffffe
+
+    invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
     const/4 v1, 0x1
 
@@ -147,7 +155,9 @@
 
     const/4 v1, 0x0
 
-    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+    const/4 v2, 0x0
+
+    invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
     const/4 v1, 0x1
 
@@ -168,7 +178,9 @@
 
     const/16 v1, 0x3e7
 
-    invoke-direct {v0, v1}, Lcom/momowords/crack/UnlimitedHook;-><init>(I)V
+    const/16 v2, 0x3e7
+
+    invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
     const/4 v1, 0x1
 

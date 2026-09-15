@@ -35,7 +35,7 @@
 
     const v1, 0x7fffffff
 
-    const/4 v2, 0x1
+    const v2, 0x7ffffffe
 
     invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
@@ -58,7 +58,7 @@
 
     const v1, 0x7fffffff
 
-    const/4 v2, 0x1
+    const v2, 0x7ffffffe
 
     invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
@@ -99,7 +99,7 @@
 
     const v1, 0x7fffffff
 
-    const/4 v2, 0x1
+    const v2, 0x7ffffffe
 
     invoke-direct {v0, v1, v2}, Lcom/momowords/crack/UnlimitedHook;-><init>(II)V
 
@@ -146,7 +146,57 @@
 
     invoke-static {v2, v7, v3, v1}, Lde/robv/android/xposed/XposedHelpers;->findAndHookMethod(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/String;[Ljava/lang/Object;)Lde/robv/android/xposed/XC_MethodHook$Unhook;
 
-    # ---- 5) 等级特权解锁：特权要求的等级 -> 0 ----
+    # ---- 5) 上报「已学词数」-> 1：cq2 构造函数的第 2 个入参 ----
+    #   s40.m() 里 new cq2(time, phd.d().a.G0(), a.s(), phd.d().a.c1())
+    #     入参0 = learned_voc_count  ← 改成 1
+    #     入参1 = max_voc_count      ← 不动，仍是 a.s() 回落的真实值
+    new-instance v0, Lcom/momowords/crack/ArgHook;
+
+    const/4 v1, 0x1
+
+    const/4 v2, 0x1
+
+    invoke-direct {v0, v1, v2}, Lcom/momowords/crack/ArgHook;-><init>(II)V
+
+    const/4 v1, 0x5
+
+    new-array v1, v1, [Ljava/lang/Object;
+
+    const/4 v2, 0x0
+
+    const-class v3, Ljava/util/Date;
+
+    aput-object v3, v1, v2
+
+    const/4 v2, 0x1
+
+    sget-object v3, Ljava/lang/Integer;->TYPE:Ljava/lang/Class;
+
+    aput-object v3, v1, v2
+
+    const/4 v2, 0x2
+
+    sget-object v3, Ljava/lang/Integer;->TYPE:Ljava/lang/Class;
+
+    aput-object v3, v1, v2
+
+    const/4 v2, 0x3
+
+    sget-object v3, Ljava/lang/Integer;->TYPE:Ljava/lang/Class;
+
+    aput-object v3, v1, v2
+
+    const/4 v2, 0x4
+
+    aput-object v0, v1, v2
+
+    const-string v2, "cq2"
+
+    const-string v3, "<init>"
+
+    invoke-static {v2, v7, v3, v1}, Lde/robv/android/xposed/XposedHelpers;->findAndHookMethod(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/String;[Ljava/lang/Object;)Lde/robv/android/xposed/XC_MethodHook$Unhook;
+
+    # ---- 6) 等级特权解锁：特权要求的等级 -> 0 ----
     #   门控在 com.maimemo.android.momo.user.level.a：
     #       boolean z9 = xfb.f.h() >= levelPrivilege.getLevel();
     #       if (!z9) disableReasons.add(DisableReason.LevelNotReached);   // ←「等级限制」
@@ -209,9 +259,11 @@
 
     const-string v2, "b"
 
-    new-instance v3, Lcom/momowords/crack/ReportHook;
+    new-instance v3, Lcom/momowords/crack/StudyLogHook;
 
-    invoke-direct {v3}, Lcom/momowords/crack/ReportHook;-><init>()V
+    const/4 v4, 0x1
+
+    invoke-direct {v3, v4}, Lcom/momowords/crack/StudyLogHook;-><init>(I)V
 
     invoke-static {v1, v2, v3}, Lde/robv/android/xposed/XposedBridge;->hookAllMethods(Ljava/lang/Class;Ljava/lang/String;Lde/robv/android/xposed/XC_MethodHook;)Ljava/util/Set;
 

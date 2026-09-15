@@ -282,30 +282,31 @@ I MoMoCrack: SELFTEST ok local=2147483647 reporting=5012 stealth=true origCallOk
 不需要反检测：`inf_level` 带 `@SyncIgnored`，等级不随上报链路回传服务器；改的是本地设置值，
 不写数据库。详见 [`docs/Issue1_Level_Unlock.md`](docs/Issue1_Level_Unlock.md)。
 
+
 ---
 
-## 十二、上报值调整：真实值 → 固定 1
+## 十二、已学词数上报为 1（上限保持真实值）
 
-上报路径的返回值从**服务端真实值**改成**固定 `1`**（本地仍是 2147483647）：
+> v1.4 曾误把**上限**改成 1，已作废删除；v1.5 是正确实现。
 
-| | 本地路径 | 上报路径 |
+| 字段 | 本地路径 | 上报路径 |
 |---|---|---|
-| v1.3 及以前 | `2147483647` | 服务端真实值（5012） |
-| **v1.4** | `2147483647` | **`1`** |
+| 单词上限 `wordLimit` / `max_voc_count` | `2147483647` | **服务端真实值（5012）** |
+| **已学词数 `total_learned_voc_count` / `learned_voc_count`** | 真实值 | **`1`** |
 
-* **Frida 独立包**：新增 `REPORT_REAL = false` + `REPORT_VALUE = 1`（改回旧行为只需 `REPORT_REAL = true`）
-* **LSPosed 模块**：`UnlimitedHook` 改为 `(value, reportValue)` 双参数，
-  `reportValue = 0x7FFFFFFE` 作哨兵表示「上报路径不干预」
+两条上报通道：
 
-真机证据：
+* `/misc/system/check`：`new cq2(time, phd.d().a.G0(), a.s(), ...)` —— hook `cq2` 构造函数，
+  **只替换第 2 个入参**（learned），上限入参原样透传
+* `/log/study_log`：`ada.b()` 的包装加 fixup，把结果对象的 `lsrCount` 改成 1
+
+真机证据（真实已学 798 / 真实上限 5012）：
 
 ```
-I MoMoCrack: [OK] hook a.s()  => 2147483647（上报路径固定返回 1）
-I MoMoCrack: SELFTEST ok local=2147483647 reporting=1 stealth=true origCallOk
+I MoMoCrack: [OK] hook a.s()  => 2147483647（上报路径回落服务端真实值）
+I MoMoCrack: [OK] hook cq2(Date,int,int,int)  => 上报时 learned_voc_count=1
+I MoMoCrack: cq2 原始 learned_voc_count = 798（上报改为 1，上限保持 5012）
+I MoMoCrack: SELFTEST ok local=2147483647 reporting=5012 stealth=true origCallOk
 ```
-
-> ⚠️ **这一改动削弱了反检测**：服务端知道该账号真实上限是 5012，客户端上报 `1` 属于
-> 「报了服务端已知不对的数」，本身就是异常信号；且 `learned_voc_count` 仍是真实的 5012，
-> 会出现「已学 5012 > 上限 1」的矛盾。旧方案在这些维度上更安全。
 
 详见 [`docs/Report_Value_Change.md`](docs/Report_Value_Change.md)。

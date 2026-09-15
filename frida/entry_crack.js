@@ -35,8 +35,8 @@ var TAG = '[MoMoCrack]';
 var LIMIT = 0x7FFFFFFF;         // 2147483647 ≈ 无限
 var STEALTH = true;             // true = 上报真实值（反封号）；false = 连上报也是无限（会被判定破解）
 var FALLBACK_REAL = 600;        // 上报路径读不到真实值时的兜底（= App 自身默认上限，绝不泄露无限值）
-var REPORT_REAL = false;        // true = 上报路径回落服务端真实值；false = 固定返回 REPORT_VALUE
-var REPORT_VALUE = 1;           // 上报路径返回的固定值（原设计回落真实值，按要求改为 1）
+var REPORT_LEARNED = 1;         // 上报路径的「已学词数」固定值（上限不动，仍上报服务端真实值）
+var _seenLsr = null;            // 取证：第一次看到的真实 lsrCount
 var gOrigFail = '';             // 上报路径调用原实现失败的记录（用于取证：区分「真 600」与「读不到」）
 
 /*
@@ -136,8 +136,9 @@ function call(label, fn) {
     try { return String(fn()); } catch (e) { return '<err: ' + e + '>'; }
 }
 
-/* 包装一个「构造上报数据」的方法：调用原实现期间开启上报模式 */
-function wrapReportBuilder(cls, method, label, inspect) {
+/* 包装一个「构造上报数据」的方法：调用原实现期间开启上报模式。
+   fixup(ret) 用来在返回前改写上报对象里的字段（例如把已学词数改成 1）。 */
+function wrapReportBuilder(cls, method, label, inspect, fixup) {
     if (!cls) { return; }
     try {
         var orig = cls[method];
@@ -148,6 +149,9 @@ function wrapReportBuilder(cls, method, label, inspect) {
                 ret = orig.apply(this, arguments);
             } finally {
                 exitReporting();
+            }
+            if (fixup) {
+                try { fixup(ret); } catch (e) { log('WARN', label + ' 字段改写失败: ' + e); }
             }
             // 审计：把即将上传的字段打出来，证明没有泄露无限值
             if (inspect) {
@@ -211,14 +215,13 @@ function boot(attempt) {
         var lastRealLimit = -1;
         A.s.implementation = function () {
             if (STEALTH && inReporting()) {
-                if (!REPORT_REAL) { return REPORT_VALUE; }
                 try { lastRealLimit = origS.call(this); } catch (e) { gOrigFail = 'a.s:' + e; }
                 // 读不到真实值时退回 App 自己的默认上限，绝不把 2147483647 报上去
                 return lastRealLimit >= 0 ? lastRealLimit : FALLBACK_REAL;
             }
             return LIMIT;
         };
-        log('OK', 'hook a.s()  => ' + LIMIT + (STEALTH ? ('（上报路径固定返回 ' + (REPORT_REAL ? '真实值' : REPORT_VALUE) + '）') : ''));
+        log('OK', 'hook a.s()  => ' + LIMIT + (STEALTH ? '（上报路径回落服务端真实值）' : ''));
     }
 
     // 2.2 本地加密存储解密（dma.a 只有 (int,String,String) 这一个 a 重载）
@@ -227,13 +230,12 @@ function boot(attempt) {
         var lastRealDma = -1;
         DMA.a.implementation = function (uid, enc, email) {
             if (STEALTH && inReporting()) {
-                if (!REPORT_REAL) { return REPORT_VALUE; }
                 try { lastRealDma = origDmaA.call(this, uid, enc, email); } catch (e) { }
                 return lastRealDma >= 0 ? lastRealDma : FALLBACK_REAL;
             }
             return LIMIT;
         };
-        log('OK', 'hook dma.a(int,String,String)  => ' + LIMIT + '（上报路径固定返回 ' + (REPORT_REAL ? '真实值' : REPORT_VALUE) + '）');
+        log('OK', 'hook dma.a(int,String,String)  => ' + LIMIT + '（上报路径回落服务端真实值）');
     }
 
     // 2.3 可用单词上限
@@ -242,13 +244,12 @@ function boot(attempt) {
         var lastRealAvail = -1;
         X1D.f.implementation = function (z) {
             if (STEALTH && inReporting()) {
-                if (!REPORT_REAL) { return REPORT_VALUE; }
                 try { lastRealAvail = origX1DF.call(this, z); } catch (e) { }
                 return lastRealAvail >= 0 ? lastRealAvail : FALLBACK_REAL;
             }
             return LIMIT;
         };
-        log('OK', 'hook x1d.f(boolean)  => ' + LIMIT + '（上报路径固定返回 ' + (REPORT_REAL ? '真实值' : REPORT_VALUE) + '）');
+        log('OK', 'hook x1d.f(boolean)  => ' + LIMIT + '（上报路径回落服务端真实值）');
     }
 
     // 2.4 Compose 侧可用上限
@@ -307,7 +308,30 @@ function boot(attempt) {
         } catch (e) { log('WARN', 'xfb.h hook 失败: ' + e); }
     }
 
-    // 2.6 【反检测】上报构造函数 —— 期间返回真实值
+    // 2.7 上报「已学词数」→ 1（两个通道）
+    //   通道1 /misc/system/check：s40.m() 里 new cq2(time, phd.d().a.G0(), a.s(), ...)
+    //         第 2 个入参就是 learned_voc_count —— 直接改入参，上限（第 3 个）不动
+    //   通道2 /log/study_log：ada.b() 里 StudyLogRequest.lsrCount = phd.d().a.W0()
+    //         在下面那个包装的 fixup 里改（字段名 lsrCount，@wl9("total_learned_voc_count")）
+    try {
+        var CQ2 = Java.use('cq2');
+        var cq2Ctor = CQ2.$init.overload('java.util.Date', 'int', 'int', 'int');
+        var seenLearned = null;
+        cq2Ctor.implementation = function (time, learned, maxVoc, dayNewLimit) {
+            var use = learned;
+            if (STEALTH && inReporting()) {
+                if (seenLearned === null) {
+                    seenLearned = learned;
+                    alog('cq2 原始 learned_voc_count = ' + learned + '（上报改为 ' + REPORT_LEARNED + '，上限保持 ' + maxVoc + '）');
+                }
+                use = REPORT_LEARNED;
+            }
+            return this.$init(time, use, maxVoc, dayNewLimit);
+        };
+        log('OK', 'hook cq2(Date,int,int,int)  => 上报时 learned_voc_count=' + REPORT_LEARNED);
+    } catch (e) { log('WARN', 'cq2 hook 失败: ' + e); }
+
+    // 2.8 【反检测】上报构造函数 —— 期间返回真实值
     wrapReportBuilder(ADA, 'b', 'ada.b()  [/log/study_log 的 StudyLogRequest]', AUDIT_REPORTS ? function (req) {
         if (!req) { return; }
         try {
@@ -316,7 +340,15 @@ function boot(attempt) {
             var flag = (wl >= LIMIT || aw >= LIMIT) ? '❌ 泄露!!' : '✅ 正常';
             log('AUDIT', '/log/study_log 将上报 wordLimit=' + wl + ' availableWordLimit=' + aw + '  ' + flag);
         } catch (e) { log('AUDIT', 'StudyLogRequest 字段读取失败: ' + e); }
-    } : null);
+    } : null, function (req) {
+        // 上报的已学词数改成 1（lsrCount = total_learned_voc_count）
+        if (!req) { return; }
+        try {
+            var before = req.lsrCount.value;
+            req.lsrCount.value = REPORT_LEARNED;
+            if (_seenLsr === null) { _seenLsr = before; alog('StudyLogRequest 原始 lsrCount = ' + before + '（上报改为 ' + REPORT_LEARNED + '）'); }
+        } catch (e) { log('WARN', 'lsrCount 改写失败: ' + e); }
+    });
     wrapReportBuilder(S40, 'm', 's40.m()  [/misc/system/check 的 debt_report_data]');
     wrapReportBuilder(GQ2, 'm', 'gq2.m()  [债务上报]');
 

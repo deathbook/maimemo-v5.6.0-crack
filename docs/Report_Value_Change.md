@@ -1,79 +1,109 @@
-# 上报值调整：真实值 → 固定 1
+# 上报调整：已学词数 → 1（上限保持服务端真实值）
 
-## 改了什么
+> 本文档修正了 v1.4 的错误实现。v1.4 误把**上限**改成了 1；正确需求是
+> **「已学」上报成 1，上限不动、仍用服务端真实值**。已在 v1.5 修正。
 
-原设计（v1.0 ~ v1.3）的「表里不一」是：进入上报构造函数时，`a.s()` / `x1d.f()` / `dma.a()` **回落服务端真实值**
-（实测 5012），出栈恢复无限。现在改成**上报路径固定返回 1**。
+## 需求
 
-| | 本地路径 | 上报路径（`ada.b()` / `s40.m()` / `gq2.m()` 内部） |
-|---|---|---|
-| 改之前 | `2147483647` | 服务端真实值（5012） |
-| **改之后** | `2147483647` | **`1`** |
+| 字段 | 上报值 |
+|---|---|
+| 单词上限（`wordLimit` / `max_voc_count`） | **服务端真实值**（实测 5012），不动 |
+| 可用单词上限（`availableWordLimit`） | 真实值，不动 |
+| **已学词数（`total_learned_voc_count` / `learned_voc_count`）** | **`1`** |
 
-涉及的三个 hook：`com.maimemo.android.momo.a.s()`、`x1d.f(boolean)`、`dma.a(int,String,String)`。
-`gq2.c()`（欠债数）**保持原语义**：本地上报都为 0 / 上报路径不干预。
+本地路径（UI / 业务判定）一切照旧：上限 `2147483647`（无限），已学词数是真实值。
 
-## 两条路线怎么实现的
+## 两条上报通道
 
-**Frida 独立包**（`frida/entry_crack.js`）
+### 通道 1：`/misc/system/check` → `debt_report_data`
+
+```java
+// defpackage/s40.java:47
+cq2 cq2Var = new cq2(aza.q(), phd.d().a.G0(), a.s(), phd.d().a.c1());
+//                  ↑time    ↑learned_voc_count  ↑max_voc_count  ↑day_new_limit
+```
+
+**做法**：hook `cq2` 的构造函数，**只改第 2 个入参**（index 1）。上限入参原样透传，
+而它在 `inReporting()` 期间由 `a.s()` 回落成服务端真实值。
+
+### 通道 2：`/log/study_log` → `StudyLogRequest`
+
+```java
+// defpackage/ada.java:95-97
+studyLogManager$StudyLogRequest.wordLimit          = a.s();            // 上限，真实值
+studyLogManager$StudyLogRequest.lsrCount           = phd.d().a.W0();   // ← 已学
+studyLogManager$StudyLogRequest.availableWordLimit = x1d.f(false);
+```
+
+**做法**：`ada.b()` 原本已经被 `wrapReportBuilder` 包住（负责开关上报模式），
+现在多传一个 `fixup`，在原实现返回后把结果对象的 `lsrCount` 字段改成 1。
+（`lsrCount` 是 dex 里的真实字段名，`@wl9("total_learned_voc_count")`，jadx 没有重命名它。）
+
+> 为什么不在 `W0()` / `G0()` 上做文章：这两个方法挂在 `dda` 内部的 `r05` **接口代理**上
+> （`dda.a` 声明类型是接口），静态拿不到具体实现类；在结果对象上改字段更稳。
+
+## 两条路线的实现
+
+### Frida 独立包（`frida/entry_crack.js`）
 
 ```js
-var REPORT_REAL  = false;   // true = 回落真实值
-var REPORT_VALUE = 1;       // 上报路径返回的固定值
+var REPORT_LEARNED = 1;   // 上报路径的「已学词数」固定值（上限不动）
 
-A.s.implementation = function () {
-    if (STEALTH && inReporting()) {
-        if (!REPORT_REAL) { return REPORT_VALUE; }
-        ...
-    }
-    return LIMIT;
+// 通道1：cq2 构造函数的第 2 个入参
+var cq2Ctor = Java.use('cq2').$init.overload('java.util.Date', 'int', 'int', 'int');
+cq2Ctor.implementation = function (time, learned, maxVoc, dayNewLimit) {
+    var use = (STEALTH && inReporting()) ? REPORT_LEARNED : learned;
+    return this.$init(time, use, maxVoc, dayNewLimit);   // maxVoc 原样透传
 };
+
+// 通道2：ada.b() 包装的 fixup
+req.lsrCount.value = REPORT_LEARNED;
 ```
 
-`REPORT_REAL` 保留着，想切回旧行为改一个布尔即可。
+上限相关的三个 hook（`a.s()` / `x1d.f()` / `dma.a()`）**恢复成 v1.3 的语义**：
+上报路径回落服务端真实值，本地返回 2147483647。
 
-**LSPosed 模块**（`UnlimitedHook.smali`）改成携带两个参数：
+### LSPosed 模块
 
-```
-UnlimitedHook(value, reportValue)
-    reportValue == 0x7FFFFFFE (SENTINEL) → 上报路径不干预，原实现照常跑
-```
+| 类 | 作用 |
+|---|---|
+| `ArgHook(index, value)` | 上报模式时把第 index 个入参替换成 value（新增） |
+| `StudyLogHook(learned)` | 包 `ada.b()`：进入置上报标志、退出清标志并改写结果里的 `lsrCount`（新增） |
+| `UnlimitedHook(value, reportValue)` | `reportValue = 0x7FFFFFFE` 表示「上报路径不干预」 |
 
 调用点：
 
-| 目标 | 构造参数 | 语义 |
-|---|---|---|
-| `a.s()` / `x1d.f()` / `dma.a()` | `(0x7FFFFFFF, 1)` | 本地无限 / 上报 1 |
-| `gq2.c()` | `(0, 0x7FFFFFFE)` | 本地 0 / 上报不干预 |
-| `LevelPrivilege.a()` | `(0, 0)` | 恒为 0 |
-| `xfb.h()` | `(999, 999)` | 恒为 999 |
+```
+a.s() / x1d.f() / dma.a()   UnlimitedHook(0x7FFFFFFF, 0x7FFFFFFE)   # 上报不干预 → 真实值
+gq2.c()                     UnlimitedHook(0, 0x7FFFFFFE)
+cq2.<init>(Date,int,int,int) ArgHook(1, 1)                          # 已学 → 1
+ada.b()                     StudyLogHook(1)                         # 已学 → 1
+LevelPrivilege.a()          UnlimitedHook(0, 0)
+xfb.h()                     UnlimitedHook(999, 999)
+```
 
 ## 真机验证
 
 Xiaomi 23116PN5BC / Android 16 / 无 root：
 
 ```
-I MoMoCrack: [OK] hook a.s()  => 2147483647（上报路径固定返回 1）
-I MoMoCrack: [OK] hook dma.a(int,String,String)  => 2147483647（上报路径固定返回 1）
-I MoMoCrack: [OK] hook x1d.f(boolean)  => 2147483647（上报路径固定返回 1）
-I MoMoCrack: [OK] hook LevelPrivilege.a()  => 0（特权等级要求清零）
-I MoMoCrack: [OK] hook xfb.h()  => 999（用户等级拉满）
-I MoMoCrack: xfb.h() 原始用户等级 = 7（已改为 999）
-I MoMoCrack: SELFTEST ok local=2147483647 reporting=1 stealth=true origCallOk
+I MoMoCrack: [OK] hook a.s()  => 2147483647（上报路径回落服务端真实值）
+I MoMoCrack: [OK] hook x1d.f(boolean)  => 2147483647（上报路径回落服务端真实值）
+I MoMoCrack: [OK] hook dma.a(int,String,String)  => 2147483647（上报路径回落服务端真实值）
+I MoMoCrack: [OK] hook cq2(Date,int,int,int)  => 上报时 learned_voc_count=1
+I MoMoCrack: cq2 原始 learned_voc_count = 798（上报改为 1，上限保持 5012）
+I MoMoCrack: SELFTEST ok local=2147483647 reporting=5012 stealth=true origCallOk
 ```
 
-`reporting=1` —— 上报路径确实不再返回 5012；本地仍是 2147483647；等级解锁不受影响。
+* `cq2 原始 learned_voc_count = 798` —— 真实已学 **798**，真实上限 **5012**；
+  上报时已学改成 1，上限 5012 原样带上。
+* `SELFTEST ... reporting=5012` —— 上限的上报值仍是服务端真实值（v1.4 的错误已修正）。
 
-## 需要知道的风险（诚实说明）
+> 通道 2（`ada.b()` 的 `lsrCount`）需要真实的学词行为触发上报才会打日志；
+> 字段名已从 dex 确认（`lsrCount`，无重命名），逻辑与通道 1 对称。
 
-这一改动**削弱了原本的反检测逻辑**：
+## 副作用提示
 
-* 服务端自己知道这个账号的上限是 5012。客户端上报 `wordLimit = 1`、`availableWordLimit = 1`、
-  `max_voc_count = 1`，与账号真实状态不符 —— **「报了一个服务端已知不对的数」本身就是异常信号**，
-  严格说比上报真实值更容易被风控标记。
-* 旧方案（上报真实值）的逻辑是：上报链路完全不泄露破解痕迹，服务端看到的一切都正常。
-* 如果目的是"让服务端以为这是个小号/新号"，那 1 这个值还需要配合其它字段（`learned_voc_count`
-  仍是真实的 5012，会出现"已学 5012 > 上限 1"的明显矛盾）才能自洽。
-
-想切回旧行为：Frida 侧把 `REPORT_REAL` 改成 `true`；模块侧把三个 hook 的 `reportValue` 换成
-`0x7FFFFFFE`（哨兵）即可。
+上报 `learned=1` 而 `max_voc_count=5012` 时，服务端会看到一个
+「只有 1 个已学词、却买了 5012 上限」的账号画像。这是这次改动的预期效果，
+但它与账号的历史学习记录不一致，是否需要配合其它字段一起改由使用者判断。
